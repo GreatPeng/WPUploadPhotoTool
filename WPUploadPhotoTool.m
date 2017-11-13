@@ -16,6 +16,9 @@
 
 @property (nonatomic, strong) UIAlertController *actionSheet;
 
+@property (nonatomic, assign) id <UploadPhotoToolDelegate> delegate;
+@property (nonatomic, assign) BOOL isSavePhotos; //是否保存到相册
+
 @end
 
 static WPUploadPhotoTool *_instance;
@@ -59,10 +62,12 @@ static WPUploadPhotoTool *_instance;
     return _actionSheet;
 }
 
-- (void)showViewToChoodePicture {
+- (void)showImageActionSheetDelegate:(id)delegate isSavePhotos:(BOOL)isSavePhotos {
+    
+    _delegate = delegate;
+    _isSavePhotos = isSavePhotos;
     // 获取当前控制器
     UIViewController *currentVC = [self getCurrentVC];
-    
     [currentVC presentViewController:self.actionSheet animated:YES completion:nil];
 }
 
@@ -82,7 +87,7 @@ static WPUploadPhotoTool *_instance;
         }
     }
     
-    id  nextResponder = nil;
+    id nextResponder = nil;
     UIViewController *appRootVC=window.rootViewController;
     //  如果是present上来的appRootVC.presentedViewController 不为nil
     if (appRootVC.presentedViewController) {
@@ -207,11 +212,18 @@ static WPUploadPhotoTool *_instance;
     if (picker.sourceType == UIImagePickerControllerSourceTypeCamera && self.isSavePhotos) {
         UIImageWriteToSavedPhotosAlbum(image,self,@selector(image:didFinishSavingWithError:contextInfo:),NULL);
     }
-    NSData *imageData = [self resetSizeOfImageData:image maxSize:[UIScreen mainScreen].bounds.size.width/2];
+    
+    CGFloat maxWidth = self.clipMaxWidth > 0 ? self.clipMaxWidth : [UIScreen mainScreen].bounds.size.width/2;
+    NSData *imageData = [self resetSizeOfImageData:image maxSize:maxWidth];
+    
     [picker dismissViewControllerAnimated:YES completion:nil];
     
     if ([self.delegate respondsToSelector:@selector(imagePickerGetData:)]) {
         [self.delegate imagePickerGetData:imageData];
+    }
+    
+    if ([self.delegate respondsToSelector:@selector(imagePickerGetData:index:)]) {
+        [self.delegate imagePickerGetData:imageData index:self.actionSheetTag];
     }
 }
 
@@ -230,6 +242,8 @@ static WPUploadPhotoTool *_instance;
 - (NSData *)resetSizeOfImageData:(UIImage *)source_image maxSize:(NSInteger)maxSize {
     //先判断当前质量是否满足要求，不满足再进行压缩
     __block NSData *finallImageData = UIImageJPEGRepresentation(source_image,1.0);
+    
+    NSLog(@"---------------不压缩：%li",finallImageData.length/1024);
     NSUInteger sizeOrigin   = finallImageData.length;
     NSUInteger sizeOriginKB = sizeOrigin / 1024;
     
@@ -251,7 +265,6 @@ static WPUploadPhotoTool *_instance;
         value = i*avg;
         [compressionQualityArr addObject:@(value)];
     }
-    
     /*
      调整大小
      说明：压缩系数数组compressionQualityArr是从大到小存储。
@@ -269,6 +282,7 @@ static WPUploadPhotoTool *_instance;
                                       image:[UIImage imageWithData:UIImageJPEGRepresentation(newImage,[[compressionQualityArr lastObject] floatValue])]];
         finallImageData = [self halfFuntion:compressionQualityArr image:image sourceData:UIImageJPEGRepresentation(image,1.0) maxSize:maxSize];
     }
+    NSLog(@"---------------压缩后：%li",finallImageData.length/1024);
     return finallImageData;
 }
 

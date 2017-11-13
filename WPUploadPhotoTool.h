@@ -11,16 +11,21 @@
 
 @protocol UploadPhotoToolDelegate <NSObject>
 
+@optional
 // 选择后的图片
 - (void)imagePickerGetData:(NSData *)data;
+// 选择后的图片 tag
+- (void)imagePickerGetData:(NSData *)data index:(NSInteger)tag;
 
 @end
 
 @interface WPUploadPhotoTool : NSObject
 
-@property (nonatomic, assign) id <UploadPhotoToolDelegate> delegate;
-@property (nonatomic, assign) BOOL isSavePhotos; //是否保存到相册
+@property (nonatomic, assign) NSInteger actionSheetTag; // 选择tag
+@property (nonatomic, assign) CGFloat clipMaxWidth; // 裁剪宽 默认：屏幕宽/2
+
 + (instancetype)shareInstance;
-- (void)showViewToChoodePicture; // 显示actionSheet弹窗
+// 显示actionSheet弹窗
+- (void)showImageActionSheetDelegate:(id)delegate isSavePhotos:(BOOL)isSavePhotos;
 
 @end
